@@ -361,6 +361,10 @@ async function runQuery(
   };
   setTimeout(pollIpcDuringQuery, IPC_POLL_MS);
 
+  // Check for per-group Google credentials (saved by /connect-google)
+  const hasGoogleCredentials = fs.existsSync('/workspace/group/.google-credentials.json');
+  if (hasGoogleCredentials) log('Google credentials found for this group');
+
   let newSessionId: string | undefined;
   let lastAssistantUuid: string | undefined;
   let messageCount = 0;
@@ -407,7 +411,9 @@ async function runQuery(
         'TeamCreate', 'TeamDelete', 'SendMessage',
         'TodoWrite', 'ToolSearch', 'Skill',
         'NotebookEdit',
-        'mcp__nanoclaw__*'
+        'mcp__nanoclaw__*',
+        ...(process.env.NOTION_API_TOKEN ? ['mcp__notion__*'] : []),
+        ...(hasGoogleCredentials || process.env.GOOGLE_CLIENT_ID ? ['mcp__google__*'] : []),
       ],
       env: sdkEnv,
       permissionMode: 'bypassPermissions',
@@ -423,6 +429,28 @@ async function runQuery(
             NANOCLAW_IS_MAIN: containerInput.isMain ? '1' : '0',
           },
         },
+        ...(process.env.NOTION_API_TOKEN ? {
+          notion: {
+            command: 'npx',
+            args: ['-y', '@notionhq/notion-mcp-server'],
+            env: {
+              OPENAPI_MCP_HEADERS: JSON.stringify({
+                Authorization: `Bearer ${process.env.NOTION_API_TOKEN}`,
+                'Notion-Version': '2022-06-28',
+              }),
+            },
+          },
+        } : {}),
+        ...(hasGoogleCredentials || process.env.GOOGLE_CLIENT_ID ? {
+          google: {
+            command: 'node',
+            args: [path.join(path.dirname(mcpServerPath), 'google-mcp-stdio.js')],
+            env: {
+              GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID || '',
+              GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET || '',
+            },
+          },
+        } : {}),
       },
       hooks: {
         PreCompact: [{ hooks: [createPreCompactHook(containerInput.assistantName)] }],

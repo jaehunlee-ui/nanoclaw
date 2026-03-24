@@ -27,6 +27,7 @@ import {
 } from './container-runtime.js';
 import { detectAuthMode } from './credential-proxy.js';
 import { validateAdditionalMounts } from './mount-security.js';
+import { readEnvFile } from './env.js';
 import { RegisteredGroup } from './types.js';
 
 // Sentinel markers for robust output parsing (must match agent-runner)
@@ -64,6 +65,16 @@ function buildVolumeMounts(
   const mounts: VolumeMount[] = [];
   const projectRoot = process.cwd();
   const groupDir = resolveGroupFolderPath(group.folder);
+
+  // Ensure group has a CLAUDE.md — copy template if missing
+  fs.mkdirSync(groupDir, { recursive: true });
+  const groupClaudeMd = path.join(groupDir, 'CLAUDE.md');
+  if (!isMain && !fs.existsSync(groupClaudeMd)) {
+    const templatePath = path.join(GROUPS_DIR, 'global', 'CLAUDE.md');
+    if (fs.existsSync(templatePath)) {
+      fs.copyFileSync(templatePath, groupClaudeMd);
+    }
+  }
 
   if (isMain) {
     // Main gets the project root read-only. Writable paths the agent needs
@@ -249,6 +260,16 @@ function buildContainerArgs(
     args.push('-e', 'ANTHROPIC_API_KEY=placeholder');
   } else {
     args.push('-e', 'CLAUDE_CODE_OAUTH_TOKEN=placeholder');
+  }
+
+  // Pass integration tokens to container for MCP servers
+  const integrationEnv = readEnvFile([
+    'NOTION_API_TOKEN',
+    'GOOGLE_CLIENT_ID',
+    'GOOGLE_CLIENT_SECRET',
+  ]);
+  for (const [key, value] of Object.entries(integrationEnv)) {
+    args.push('-e', `${key}=${value}`);
   }
 
   // Runtime-specific args for host gateway resolution

@@ -38,6 +38,10 @@ When working as a sub-agent or teammate, only use `send_message` if instructed t
 
 Files you create are saved in `/workspace/group/`. Use this for notes, research, or anything that should persist.
 
+## User Profile
+
+At the start of every conversation, check if `/workspace/group/user-profile.md` exists. If it does, read and apply the user's preferences (tone, personality, work context). If it doesn't exist, run the `/onboarding` skill before proceeding.
+
 ## Memory
 
 The `conversations/` folder contains searchable history of past conversations. Use this to recall context from previous sessions.
@@ -46,6 +50,36 @@ When you learn something important:
 - Create files for structured data (e.g., `customers.md`, `preferences.md`)
 - Split files larger than 500 lines into folders
 - Keep an index in your memory for the files you create
+
+## Notes
+
+Save important information from conversations to `/workspace/group/notes.md`.
+
+### What to save
+- Decisions ("A안으로 가기로 했다", "프로젝트 취소됨")
+- People/roles ("김철수 대리가 디자인 담당")
+- Accounts/systems ("Jira 주소는 xxx.atlassian.net")
+- Work processes ("보고서는 팀장한테 먼저 보내기")
+- User preferences ("PPT보다 노션 정리 선호")
+- User explicitly asks ("이거 기억해", "메모해둬", "remember this")
+
+### What NOT to save
+- Time-sensitive info (마감일, 일정, 날짜 관련) — 사용자가 명시적으로 기록을 요청한 경우만 저장
+- Greetings, small talk
+- One-off questions ("오늘 날씨?", "이거 번역해줘")
+- Search/query results
+
+### Format
+Append with date header, don't overwrite:
+```
+### 2026-03-19
+- {summary}
+```
+
+## Google Workspace Rules
+
+- **읽기/조회는 자유** — Gmail 검색, 메일 읽기, 캘린더 일정 조회, Drive 파일 조회는 확인 없이 바로 실행
+- **쓰기/전송은 반드시 사용자 확인** — 이메일 전송, 캘린더 일정 생성/수정/삭제, Drive 파일 업로드/삭제 전에 내용을 보여주고 승인을 받을 것
 
 ## Message Formatting
 
