@@ -76,6 +76,10 @@ Append with date header, don't overwrite:
 - {summary}
 ```
 
+## Channel Access
+
+You do NOT have direct access to Slack, Telegram, or any channel API. You cannot call Slack API or read channel history directly. All conversation messages are provided to you in the prompt — use them as-is. If asked to summarize or organize past conversations, work with the messages already in your context.
+
 ## Google Workspace Rules
 
 - **읽기/조회는 자유** — Gmail 검색, 메일 읽기, 캘린더 일정 조회, Drive 파일 조회는 확인 없이 바로 실행

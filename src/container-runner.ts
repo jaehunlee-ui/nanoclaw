@@ -263,8 +263,9 @@ function buildContainerArgs(
   }
 
   // Pass integration tokens to container for MCP servers
+  // Note: NOTION_API_TOKEN is no longer passed here — each group stores
+  // its own Notion credentials via /connect-notion (per-group file).
   const integrationEnv = readEnvFile([
-    'NOTION_API_TOKEN',
     'GOOGLE_CLIENT_ID',
     'GOOGLE_CLIENT_SECRET',
   ]);

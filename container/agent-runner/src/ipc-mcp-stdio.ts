@@ -333,6 +333,152 @@ Use available_groups.json to find the JID for a group. The folder name must be c
   },
 );
 
+// --- Notion tools ---
+// Always available so any group can connect their own Notion workspace.
+
+const NOTION_CREDENTIALS_PATH = '/workspace/group/.notion-credentials.json';
+
+server.tool(
+  'notion_connect',
+  'Connect a Notion workspace. Validates the token and saves credentials for this group.',
+  { token: z.string().describe('Notion Internal Integration Token (starts with ntn_ or secret_)') },
+  async (args) => {
+    try {
+      const res = await fetch('https://api.notion.com/v1/users/me', {
+        headers: {
+          Authorization: `Bearer ${args.token}`,
+          'Notion-Version': '2022-06-28',
+        },
+      });
+      if (!res.ok) {
+        const err = await res.text();
+        return { content: [{ type: 'text' as const, text: `Invalid token: ${err}` }], isError: true };
+      }
+      const user = await res.json() as { name?: string; type?: string };
+      fs.writeFileSync(NOTION_CREDENTIALS_PATH, JSON.stringify({ token: args.token }, null, 2));
+      return { content: [{ type: 'text' as const, text: `Notion connected as ${user.name || 'unknown'} (${user.type || 'bot'}). Notion tools will be available on next message.` }] };
+    } catch (err) {
+      return { content: [{ type: 'text' as const, text: `Error: ${err}` }], isError: true };
+    }
+  },
+);
+
+server.tool(
+  'notion_status',
+  'Check if Notion is connected for this group.',
+  {},
+  async () => {
+    const connected = fs.existsSync(NOTION_CREDENTIALS_PATH);
+    return { content: [{ type: 'text' as const, text: connected ? 'Connected.' : 'Not connected. Use /connect-notion to set up.' }] };
+  },
+);
+
+server.tool(
+  'notion_disconnect',
+  'Disconnect Notion. Deletes saved credentials for this group.',
+  {},
+  async () => {
+    try { fs.unlinkSync(NOTION_CREDENTIALS_PATH); } catch {}
+    return { content: [{ type: 'text' as const, text: 'Notion disconnected.' }] };
+  },
+);
+
+// --- Google OAuth tools ---
+// Auth tools are always available when GOOGLE_CLIENT_ID is set.
+// API tools (gws mcp) are registered separately in index.ts only when credentials exist.
+
+const GOOGLE_CREDENTIALS_PATH = '/workspace/group/.gws-credentials.json';
+const GOOGLE_SCOPES = [
+  'https://www.googleapis.com/auth/gmail.modify',
+  'https://www.googleapis.com/auth/calendar',
+  'https://www.googleapis.com/auth/drive',
+].join(' ');
+
+if (process.env.GOOGLE_CLIENT_ID) {
+  server.tool(
+    'google_auth_url',
+    'Generate a Google OAuth authorization URL. Send this to the user so they can log in.',
+    {},
+    async () => {
+      const clientId = process.env.GOOGLE_CLIENT_ID;
+      if (!clientId) {
+        return { content: [{ type: 'text' as const, text: 'Error: GOOGLE_CLIENT_ID is not configured.' }], isError: true };
+      }
+      const params = new URLSearchParams({
+        client_id: clientId,
+        redirect_uri: 'http://localhost:1',
+        response_type: 'code',
+        scope: GOOGLE_SCOPES,
+        access_type: 'offline',
+        prompt: 'consent',
+      });
+      return { content: [{ type: 'text' as const, text: `https://accounts.google.com/o/oauth2/v2/auth?${params}` }] };
+    },
+  );
+
+  server.tool(
+    'google_auth_exchange',
+    'Exchange an authorization code for tokens. The code comes from the redirect URL the user copies after Google login.',
+    { code: z.string().describe('The authorization code from the redirect URL (?code= parameter)') },
+    async (args) => {
+      const clientId = process.env.GOOGLE_CLIENT_ID!;
+      const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+      if (!clientSecret) {
+        return { content: [{ type: 'text' as const, text: 'Error: GOOGLE_CLIENT_SECRET is not configured.' }], isError: true };
+      }
+      try {
+        const res = await fetch('https://oauth2.googleapis.com/token', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: new URLSearchParams({
+            client_id: clientId,
+            client_secret: clientSecret,
+            code: args.code,
+            grant_type: 'authorization_code',
+            redirect_uri: 'http://localhost:1',
+          }),
+        });
+        if (!res.ok) {
+          const err = await res.text();
+          return { content: [{ type: 'text' as const, text: `Token exchange failed: ${err}` }], isError: true };
+        }
+        const data = await res.json() as { refresh_token: string };
+        // Save in gws credential format
+        const credentials = {
+          client_id: clientId,
+          client_secret: clientSecret,
+          refresh_token: data.refresh_token,
+          type: 'authorized_user',
+        };
+        fs.writeFileSync(GOOGLE_CREDENTIALS_PATH, JSON.stringify(credentials, null, 2));
+        return { content: [{ type: 'text' as const, text: 'Google account connected successfully.' }] };
+      } catch (err) {
+        return { content: [{ type: 'text' as const, text: `Error: ${err}` }], isError: true };
+      }
+    },
+  );
+
+  server.tool(
+    'google_auth_status',
+    'Check if Google account is connected for this chat.',
+    {},
+    async () => {
+      const connected = fs.existsSync(GOOGLE_CREDENTIALS_PATH);
+      return { content: [{ type: 'text' as const, text: connected ? 'Connected.' : 'Not connected. Use /connect-google to authenticate.' }] };
+    },
+  );
+
+  server.tool(
+    'google_disconnect',
+    'Disconnect Google account. Deletes local credentials.',
+    {},
+    async () => {
+      try { fs.unlinkSync(GOOGLE_CREDENTIALS_PATH); } catch {}
+      return { content: [{ type: 'text' as const, text: 'Google account disconnected.' }] };
+    },
+  );
+}
+
 // Start the stdio transport
 const transport = new StdioServerTransport();
 await server.connect(transport);

@@ -1,11 +1,11 @@
 ---
 name: connect-google
-description: Connect your Google account for Gmail and Calendar access. Triggers on "connect google", "구글 연결", "구글 연동", "google 연결", "gmail 연결", "캘린더 연결".
+description: Connect your Google account for Gmail, Calendar, and Drive access. Triggers on "connect google", "구글 연결", "구글 연동", "google 연결", "gmail 연결", "캘린더 연결".
 ---
 
 # Connect Google Account
 
-This skill connects the user's personal Google account so the agent can access their Gmail and Calendar.
+This skill connects the user's personal Google account so the agent can access their Gmail, Calendar, and Drive.
 
 ## Flow
 
@@ -52,9 +52,10 @@ If successful:
 > - "이번 주 일정 보여줘"
 > - "내일 오후 2시에 미팅 잡아줘"
 > - "김철수에게 메일 보내줘"
+> - "구글 드라이브에서 파일 찾아줘"
 
 ### Disconnect
 
-If the user wants to disconnect, use the `google_disconnect` tool. It revokes the token with Google and deletes local credentials.
+If the user wants to disconnect, use the `google_disconnect` tool.
 
-> Google 연동이 해제되었습니다. 토큰이 폐기되어 더 이상 사용할 수 없습니다. 다음 메시지부터 Gmail/Calendar/Drive 도구가 비활성화됩니다.
+> Google 연동이 해제되었습니다. 다음 메시지부터 Gmail/Calendar/Drive 도구가 비활성화됩니다.
