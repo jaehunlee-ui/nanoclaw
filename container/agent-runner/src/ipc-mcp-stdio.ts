@@ -470,11 +470,25 @@ if (process.env.GOOGLE_CLIENT_ID) {
 
   server.tool(
     'google_disconnect',
-    'Disconnect Google account. Deletes local credentials.',
+    'Disconnect Google account. Revokes the token at Google and deletes local credentials.',
     {},
     async () => {
+      // Read credentials before deleting so we can revoke the token
+      let revokeResult = '';
+      try {
+        const creds = JSON.parse(fs.readFileSync(GOOGLE_CREDENTIALS_PATH, 'utf-8'));
+        if (creds.refresh_token) {
+          const res = await fetch(`https://oauth2.googleapis.com/revoke?token=${encodeURIComponent(creds.refresh_token)}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          });
+          revokeResult = res.ok ? ' Token revoked at Google.' : ` Token revoke failed (${res.status}), but local credentials deleted.`;
+        }
+      } catch {
+        // No credentials file or parse error — just delete
+      }
       try { fs.unlinkSync(GOOGLE_CREDENTIALS_PATH); } catch {}
-      return { content: [{ type: 'text' as const, text: 'Google account disconnected.' }] };
+      return { content: [{ type: 'text' as const, text: `Google account disconnected.${revokeResult}` }] };
     },
   );
 }

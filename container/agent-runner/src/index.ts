@@ -430,7 +430,6 @@ async function runQuery(
         'NotebookEdit',
         'mcp__nanoclaw__*',
         ...(notionApiToken ? ['mcp__notion__*'] : []),
-        ...(hasGoogleCredentials ? ['mcp__google__*'] : []),
       ],
       env: sdkEnv,
       permissionMode: 'bypassPermissions',
@@ -458,15 +457,8 @@ async function runQuery(
             },
           },
         } : {}),
-        ...(hasGoogleCredentials ? {
-          google: {
-            command: 'gws',
-            args: ['mcp', '-s', 'gmail,calendar,drive'],
-            env: {
-              GOOGLE_WORKSPACE_CLI_CREDENTIALS_FILE: gwsCredentialsPath,
-            },
-          },
-        } : {}),
+        // Google: gws CLI is available via Bash (no MCP server needed).
+        // Agent runs gws commands directly (e.g., gws gmail +triage).
       },
       hooks: {
         PreCompact: [{ hooks: [createPreCompactHook(containerInput.assistantName)] }],
@@ -528,6 +520,12 @@ async function main(): Promise<void> {
   // Credentials are injected by the host's credential proxy via ANTHROPIC_BASE_URL.
   // No real secrets exist in the container environment.
   const sdkEnv: Record<string, string | undefined> = { ...process.env };
+
+  // Point gws CLI to per-group Google credentials (if connected)
+  const gwsCredFile = '/workspace/group/.gws-credentials.json';
+  if (fs.existsSync(gwsCredFile)) {
+    sdkEnv.GOOGLE_WORKSPACE_CLI_CREDENTIALS_FILE = gwsCredFile;
+  }
 
   const __dirname = path.dirname(fileURLToPath(import.meta.url));
   const mcpServerPath = path.join(__dirname, 'ipc-mcp-stdio.js');
